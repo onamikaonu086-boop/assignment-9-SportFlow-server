@@ -35,7 +35,45 @@ async function startServer() {
 
     const db = client.db("sportflowDB");
 
+    const db = client.db("sportflowDB");
+    const facilityCollection = db.collection("facilities");
+    const bookingCollection = db.collection("bookings");
 
+    const auth = betterAuth({
+      baseURL: process.env.BETTER_AUTH_URL || "http://localhost:8000",
+      secret: process.env.BETTER_AUTH_SECRET,
+      database: mongodbAdapter(db),
+      emailAndPassword: { enabled: true },
+      socialProviders: {
+        google: {
+          clientId: process.env.GOOGLE_CLIENT_ID,
+          clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        },
+      },
+      trustedOrigins: [process.env.CLIENT_URL || "http://localhost:3000"],
+    });
+
+    const corsOptions = {
+      origin: process.env.CLIENT_URL || "http://localhost:3000",
+      methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+      credentials: true,
+      allowedHeaders: ["Content-Type", "Authorization"],
+    };
+
+    app.use(cors(corsOptions));
+    app.use(express.json());
+    app.all(["/api/auth", "/api/auth/{*splat}"], toNodeHandler(auth));
+
+    const verifySession = async (req, res, next) => {
+      try {
+        const session = await auth.api.getSession({ headers: req.headers });
+        if (!session) return res.status(401).json({ error: "Unauthorized" });
+        req.user = session.user;
+        next();
+      } catch {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+    };
 
     app.get("/", (req, res) => {
       res.send("SportFlow Server is running!");
@@ -43,7 +81,7 @@ async function startServer() {
 
 
 
-    
+
    app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
