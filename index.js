@@ -165,6 +165,14 @@ async function startServer() {
       res.send(result);
     });
 
+    app.get("/my-bookings", verifySession, async (req, res) => {
+      const bookings = await bookingCollection
+        .find({ user_email: req.user.email })
+        .sort({ created_at: -1 })
+        .toArray();
+      res.send(bookings);
+    });
+
 
 
 
