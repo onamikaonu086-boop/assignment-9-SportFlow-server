@@ -173,6 +173,16 @@ async function startServer() {
       res.send(bookings);
     });
 
+    app.patch("/bookings/:id/cancel", verifySession, async (req, res) => {
+      const { ObjectId } = await import("mongodb");
+      const result = await bookingCollection.updateOne(
+        { _id: new ObjectId(req.params.id), user_email: req.user.email },
+        { $set: { status: "cancelled" } }
+      );
+      res.send(result);
+    });
+
+
 
 
 
