@@ -147,6 +147,25 @@ async function startServer() {
     });
 
 
+    app.post("/bookings", verifySession, async (req, res) => {
+      const booking = {
+        ...req.body,
+        user_email: req.user.email,
+        status: "pending",
+        created_at: new Date(),
+      };
+      const result = await bookingCollection.insertOne(booking);
+
+      const { ObjectId } = await import("mongodb");
+      await facilityCollection.updateOne(
+        { _id: new ObjectId(booking.facility_id) },
+        { $inc: { booking_count: 1 } }
+      );
+
+      res.send(result);
+    });
+
+
 
 
    app.listen(PORT, () => {
