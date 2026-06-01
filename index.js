@@ -101,9 +101,12 @@ async function startServer() {
     });
 
 
+    app.post("/add-facility", verifySession, async (req, res) => {
+      const result = await facilityCollection.insertOne(req.body);
+      res.send(result);
+    });
 
 
-    
 
    app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
