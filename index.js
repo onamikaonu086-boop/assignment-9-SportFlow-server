@@ -106,6 +106,14 @@ async function startServer() {
       res.send(result);
     });
 
+    app.get("/my-facilities", verifySession, async (req, res) => {
+      const facilities = await facilityCollection
+        .find({ owner_email: req.user.email })
+        .toArray();
+      res.send(facilities);
+    });
+
+
 
 
    app.listen(PORT, () => {
