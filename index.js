@@ -114,6 +114,24 @@ async function startServer() {
     });
 
 
+    app.put("/facilities/:id", verifySession, async (req, res) => {
+      const { ObjectId } = await import("mongodb");
+      const facility = await facilityCollection.findOne({
+        _id: new ObjectId(req.params.id),
+      });
+      if (!facility) return res.status(404).json({ error: "Not found" });
+      if (facility.owner_email !== req.user.email)
+        return res.status(403).json({ error: "Forbidden" });
+
+      const { _id, owner_email, booking_count, ...updateData } = req.body;
+      const result = await facilityCollection.updateOne(
+        { _id: new ObjectId(req.params.id) },
+        { $set: updateData }
+      );
+      res.send(result);
+    });
+
+
 
 
    app.listen(PORT, () => {
