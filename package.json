@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
@@ -10,6 +13,7 @@
     "build": "echo \"No build step required for this server\""
   },
   "dependencies": {
+    "better-auth": "^1.6.13",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
