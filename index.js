@@ -11,6 +11,15 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 8000;
 const uri = process.env.MONGODB_URI;
+const defaultClientURL = "https://assignment-9-sport-flow.vercel.app";
+const clientOrigins = [
+  process.env.CLIENT_URL,
+  process.env.CLIENT_URL_LOCAL,
+  defaultClientURL,
+  "http://127.0.0.1:3000",
+]
+  .filter(Boolean)
+  .map((origin) => origin.replace(/\/$/, ""));
 
 if (!uri) {
   throw new Error("MONGODB_URI is not defined");
@@ -33,6 +42,7 @@ const connectPromise = client.connect().then(() => {
 
 const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL || "http://localhost:8000",
+  basePath: "/api/auth",
   secret: process.env.BETTER_AUTH_SECRET,
   database: mongodbAdapter(db),
   emailAndPassword: { enabled: true },
@@ -42,11 +52,16 @@ const auth = betterAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     },
   },
-  trustedOrigins: [process.env.CLIENT_URL || "http://localhost:3000"],
+  trustedOrigins: clientOrigins,
 });
 
 const corsOptions = {
-  origin: process.env.CLIENT_URL || "http://localhost:3000",
+  origin(origin, callback) {
+    if (!origin || clientOrigins.includes(origin.replace(/\/$/, ""))) {
+      return callback(null, true);
+    }
+    return callback(new Error(`Origin ${origin} is not allowed by CORS`));
+  },
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   credentials: true,
   allowedHeaders: ["Content-Type", "Authorization"],
