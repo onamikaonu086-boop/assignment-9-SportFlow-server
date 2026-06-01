@@ -34,8 +34,6 @@ async function startServer() {
     console.log("Connected to MongoDB");
 
     const db = client.db("sportflowDB");
-
-    const db = client.db("sportflowDB");
     const facilityCollection = db.collection("facilities");
     const bookingCollection = db.collection("bookings");
 
