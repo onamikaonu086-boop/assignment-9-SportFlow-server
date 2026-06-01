@@ -80,6 +80,17 @@ async function startServer() {
     });
 
 
+    app.get("/facilities", async (req, res) => {
+      const { search, type } = req.query;
+      const query = {};
+
+      if (search) query.name = { $regex: search, $options: "i" };
+      if (type) query.facility_type = { $in: type.split(",") };
+
+      const facilities = await facilityCollection.find(query).toArray();
+      res.send(facilities);
+    });
+
 
 
    app.listen(PORT, () => {
