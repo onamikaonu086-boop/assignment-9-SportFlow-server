@@ -91,7 +91,19 @@ async function startServer() {
       res.send(facilities);
     });
 
+    app.get("/facilities/:id", async (req, res) => {
+      const { ObjectId } = await import("mongodb");
+      const facility = await facilityCollection.findOne({
+        _id: new ObjectId(req.params.id),
+      });
+      if (!facility) return res.status(404).json({ error: "Facility not found" });
+      res.send(facility);
+    });
 
+
+
+
+    
 
    app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
