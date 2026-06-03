@@ -48,7 +48,6 @@ const normalizeAuthURL = (value) => {
 
 const auth = betterAuth({
   baseURL: normalizeAuthURL(process.env.BETTER_AUTH_URL),
-  basePath: "/api/auth",
   secret: process.env.BETTER_AUTH_SECRET,
   database: mongodbAdapter(db),
   emailAndPassword: { enabled: true },
@@ -62,6 +61,8 @@ const auth = betterAuth({
 
   advanced: {
     crossSubdomainCookie: true,
+    useSecureCookies: true,
+    disableCORSCheck: true,
   },
 });
 
