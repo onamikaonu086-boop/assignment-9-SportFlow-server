@@ -68,7 +68,11 @@ const auth = betterAuth({
 
 const corsOptions = {
   origin(origin, callback) {
-    if (!origin || clientOrigins.includes(origin.replace(/\/$/, ""))) {
+    if (!origin) {
+      return callback(null, true);
+    }
+    const normalizedOrigin = origin.replace(/\/$/, "");
+    if (clientOrigins.includes(normalizedOrigin)) {
       return callback(null, true);
     }
     return callback(new Error(`Origin ${origin} is not allowed by CORS`));
@@ -76,13 +80,13 @@ const corsOptions = {
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   credentials: true,
   allowedHeaders: ["Content-Type", "Authorization"],
-
   exposedHeaders: ["set-cookie"],
 };
 
 app.use(cors(corsOptions));
-app.all(["/api/auth", "/api/auth/*"], toNodeHandler(auth));
+app.options("*", cors(corsOptions));
 app.use(express.json());
+app.all(["/api/auth", "/api/auth/*"], toNodeHandler(auth));
 
 app.use(async (req, res, next) => {
   try {
