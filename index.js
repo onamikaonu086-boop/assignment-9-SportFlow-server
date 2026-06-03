@@ -73,7 +73,7 @@ const corsOptions = {
     }
     const normalizedOrigin = origin.replace(/\/$/, "");
     if (clientOrigins.includes(normalizedOrigin)) {
-      return callback(null, true);
+      return callback(null, normalizedOrigin);
     }
     return callback(new Error(`Origin ${origin} is not allowed by CORS`));
   },
@@ -85,8 +85,23 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (!origin) return next();
+  const normalizedOrigin = origin.replace(/\/$/, "");
+  if (clientOrigins.includes(normalizedOrigin)) {
+    res.header("Access-Control-Allow-Origin", normalizedOrigin);
+    res.header("Access-Control-Allow-Credentials", "true");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,PATCH,OPTIONS");
+  }
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+  next();
+});
 app.use(express.json());
-app.all(["/api/auth", "/api/auth/*"], toNodeHandler(auth));
+app.all(["/api/auth", "/api/auth/*"], cors(corsOptions), toNodeHandler(auth));
 
 app.use(async (req, res, next) => {
   try {
