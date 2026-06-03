@@ -7,8 +7,13 @@ import { mongodbAdapter } from "better-auth/adapters/mongodb";
 import { toNodeHandler } from "better-auth/node";
 
 dotenv.config();
+app.use(cors(corsOptions));
 
 const app = express();
+app.use(express.json());
+app.all(["/api/auth", "/api/auth/*"], cors(corsOptions), toNodeHandler(auth));
+
+
 const PORT = process.env.PORT || 8000;
 const uri = process.env.MONGODB_URI;
 const defaultClientURL = "https://assignment-9-sport-flow.vercel.app";
@@ -19,8 +24,8 @@ const clientOrigins = [
   "http://localhost:3000",
   "http://127.0.0.1:3000",
 ]
-  .filter(Boolean)
-  .map((origin) => origin.replace(/\/$/, ""));
+.filter(Boolean)
+.map((origin) => origin.replace(/\/$/, ""));
 
 // Helpful startup debug so you can verify allowed origins after deploy
 console.log('[Server] Allowed client origins:', clientOrigins);
@@ -86,7 +91,6 @@ const corsOptions = {
   exposedHeaders: ["set-cookie"],
 };
 
-app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 app.use((req, res, next) => {
   const origin = req.headers.origin;
@@ -106,8 +110,6 @@ app.use((req, res, next) => {
   }
   next();
 });
-app.use(express.json());
-app.all(["/api/auth", "/api/auth/*"], cors(corsOptions), toNodeHandler(auth));
 
 app.use(async (req, res, next) => {
   try {
