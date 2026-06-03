@@ -41,8 +41,13 @@ const connectPromise = client.connect().then(() => {
   console.log("Connected to MongoDB");
 });
 
+const normalizeAuthURL = (value) => {
+  if (!value) return "http://localhost:8000";
+  return value.replace(/\/$/, "").replace(/\/api\/auth$/, "");
+};
+
 const auth = betterAuth({
-  baseURL: process.env.BETTER_AUTH_URL || "http://localhost:8000",
+  baseURL: normalizeAuthURL(process.env.BETTER_AUTH_URL),
   basePath: "/api/auth",
   secret: process.env.BETTER_AUTH_SECRET,
   database: mongodbAdapter(db),
