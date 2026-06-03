@@ -8,11 +8,7 @@ import { toNodeHandler } from "better-auth/node";
 
 dotenv.config();
 const app = express();
-app.use(cors(corsOptions));
 app.use(express.json());
-
-app.all(["/api/auth", "/api/auth/*"], cors(corsOptions), toNodeHandler(auth));
-
 
 const PORT = process.env.PORT || 8000;
 const uri = process.env.MONGODB_URI;
@@ -69,7 +65,7 @@ const auth = betterAuth({
 
   advanced: {
     crossSubdomainCookie: true,
-    useSecureCookies: true,
+    useSecureCookies: process.env.NODE_ENV === "production",
     disableCORSCheck: true,
   },
 });
@@ -90,6 +86,9 @@ const corsOptions = {
   allowedHeaders: ["Content-Type", "Authorization"],
   exposedHeaders: ["set-cookie"],
 };
+
+app.use(cors(corsOptions));
+app.all(["/api/auth", "/api/auth/*"], cors(corsOptions), toNodeHandler(auth));
 
 app.options("*", cors(corsOptions));
 app.use((req, res, next) => {
