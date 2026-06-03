@@ -42,7 +42,7 @@ const connectPromise = client.connect().then(() => {
 });
 
 const auth = betterAuth({
-  baseURL: process.env.BETTER_AUTH_URL || "http://localhost:8000",
+  baseURL: process.env.CLIENT_URL || "http://localhost:3000",
   basePath: "/api/auth",
   secret: process.env.BETTER_AUTH_SECRET,
   database: mongodbAdapter(db),
