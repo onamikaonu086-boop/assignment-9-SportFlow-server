@@ -22,6 +22,9 @@ const clientOrigins = [
   .filter(Boolean)
   .map((origin) => origin.replace(/\/$/, ""));
 
+// Helpful startup debug so you can verify allowed origins after deploy
+console.log('[Server] Allowed client origins:', clientOrigins);
+
 if (!uri) {
   throw new Error("MONGODB_URI is not defined");
 }
@@ -94,6 +97,9 @@ app.use((req, res, next) => {
     res.header("Access-Control-Allow-Credentials", "true");
     res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
     res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,PATCH,OPTIONS");
+    console.log(`[CORS] Allowed origin: ${normalizedOrigin}`);
+  } else {
+    console.warn(`[CORS] Blocked origin: ${normalizedOrigin}`);
   }
   if (req.method === "OPTIONS") {
     return res.sendStatus(204);
