@@ -7,6 +7,19 @@ import { mongodbAdapter } from "better-auth/adapters/mongodb";
 import { toNodeHandler } from "better-auth/node";
 
 dotenv.config();
+
+const requiredEnv = [
+  "MONGODB_URI",
+  "BETTER_AUTH_URL",
+  "BETTER_AUTH_SECRET",
+  "GOOGLE_CLIENT_ID",
+  "GOOGLE_CLIENT_SECRET",
+];
+const missingEnv = requiredEnv.filter((name) => !process.env[name]);
+if (missingEnv.length) {
+  throw new Error(`Missing required env vars: ${missingEnv.join(", ")}`);
+}
+
 const app = express();
 app.use(express.json());
 
@@ -46,8 +59,9 @@ const connectPromise = client.connect().then(() => {
 });
 
 const normalizeAuthURL = (value) => {
-  if (!value) return "http://localhost:8000";
-  return value.replace(/\/$/, "").replace(/\/api\/auth$/, "");
+  if (value) return value.replace(/\/$/, "").replace(/\/api\/auth$/, "");
+  if (process.env.NODE_ENV === "production") return "https://assignment-9-sport-flow-server.vercel.app";
+  return "http://localhost:8000";
 };
 
 const auth = betterAuth({
@@ -88,7 +102,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.all(["/api/auth", "/api/auth/*"], cors(corsOptions), toNodeHandler(auth));
+app.use("/api/auth", cors(corsOptions), toNodeHandler(auth));
 
 app.options("*", cors(corsOptions));
 app.use((req, res, next) => {
