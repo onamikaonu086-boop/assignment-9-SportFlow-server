@@ -59,6 +59,10 @@ const auth = betterAuth({
     },
   },
   trustedOrigins: clientOrigins,
+
+  advanced: {
+    crossSubdomainCookie: true,
+  },
 });
 
 const corsOptions = {
@@ -71,6 +75,8 @@ const corsOptions = {
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   credentials: true,
   allowedHeaders: ["Content-Type", "Authorization"],
+
+  exposedHeaders: ["set-cookie"],
 };
 
 app.use(cors(corsOptions));
