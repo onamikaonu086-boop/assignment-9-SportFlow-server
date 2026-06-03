@@ -7,10 +7,10 @@ import { mongodbAdapter } from "better-auth/adapters/mongodb";
 import { toNodeHandler } from "better-auth/node";
 
 dotenv.config();
-app.use(cors(corsOptions));
-
 const app = express();
+app.use(cors(corsOptions));
 app.use(express.json());
+
 app.all(["/api/auth", "/api/auth/*"], cors(corsOptions), toNodeHandler(auth));
 
 
