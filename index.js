@@ -8,39 +8,13 @@ import { toNodeHandler } from "better-auth/node";
 
 dotenv.config();
 
-const requiredEnv = [
-  "MONGODB_URI",
-  "BETTER_AUTH_URL",
-  "BETTER_AUTH_SECRET",
-  "GOOGLE_CLIENT_ID",
-  "GOOGLE_CLIENT_SECRET",
-];
-const missingEnv = requiredEnv.filter((name) => !process.env[name]);
-if (missingEnv.length) {
-  throw new Error(`Missing required env vars: ${missingEnv.join(", ")}`);
-}
-
 const app = express();
-app.use(express.json());
-
 const PORT = process.env.PORT || 8000;
 const uri = process.env.MONGODB_URI;
-const defaultClientURL = "https://assignment-9-sport-flow.vercel.app";
-const clientOrigins = [
-  process.env.CLIENT_URL,
-  process.env.CLIENT_URL_LOCAL,
-  defaultClientURL,
-  "http://localhost:3000",
-  "http://127.0.0.1:3000",
-]
-.filter(Boolean)
-.map((origin) => origin.replace(/\/$/, ""));
-
-// Helpful startup debug so you can verify allowed origins after deploy
-console.log('[Server] Allowed client origins:', clientOrigins);
 
 if (!uri) {
-  throw new Error("MONGODB_URI is not defined");
+  console.error("MONGODB_URI is not defined in .env file");
+  process.exit(1);
 }
 
 const client = new MongoClient(uri, {
@@ -51,106 +25,56 @@ const client = new MongoClient(uri, {
   },
 });
 
-const db = client.db("sportflowDB");
-const facilityCollection = db.collection("facilities");
-const bookingCollection = db.collection("bookings");
-const connectPromise = client.connect().then(() => {
-  console.log("Connected to MongoDB");
-});
-
-const normalizeAuthURL = (value) => {
-  if (value) return value.replace(/\/$/, "").replace(/\/api\/auth$/, "");
-  if (process.env.NODE_ENV === "production") return "https://assignment-9-sport-flow-server.vercel.app";
-  return "http://localhost:8000";
-};
-
-const auth = betterAuth({
-  baseURL: normalizeAuthURL(process.env.BETTER_AUTH_URL),
-  secret: process.env.BETTER_AUTH_SECRET,
-  database: mongodbAdapter(db),
-  emailAndPassword: { enabled: true },
-  socialProviders: {
-    google: {
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    },
-  },
-  trustedOrigins: clientOrigins,
-
-  advanced: {
-    crossSubdomainCookie: true,
-    useSecureCookies: process.env.NODE_ENV === "production",
-    disableCORSCheck: true,
-  },
-});
-
-const corsOptions = {
-  origin(origin, callback) {
-    if (!origin) {
-      return callback(null, true);
-    }
-    const normalizedOrigin = origin.replace(/\/$/, "");
-    if (clientOrigins.includes(normalizedOrigin)) {
-      return callback(null, normalizedOrigin);
-    }
-    return callback(new Error(`Origin ${origin} is not allowed by CORS`));
-  },
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  credentials: true,
-  allowedHeaders: ["Content-Type", "Authorization"],
-  exposedHeaders: ["set-cookie"],
-};
-
-app.use(cors(corsOptions));
-app.use("/api/auth", cors(corsOptions), toNodeHandler(auth));
-
-app.options("*", cors(corsOptions));
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  if (!origin) return next();
-  const normalizedOrigin = origin.replace(/\/$/, "");
-  if (clientOrigins.includes(normalizedOrigin)) {
-    res.header("Access-Control-Allow-Origin", normalizedOrigin);
-    res.header("Access-Control-Allow-Credentials", "true");
-    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,PATCH,OPTIONS");
-    console.log(`[CORS] Allowed origin: ${normalizedOrigin}`);
-  } else {
-    console.warn(`[CORS] Blocked origin: ${normalizedOrigin}`);
-  }
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(204);
-  }
-  next();
-});
-
-app.use(async (req, res, next) => {
+async function startServer() {
   try {
-    await connectPromise;
-    next();
-  } catch (error) {
-    console.error("Failed to connect to MongoDB:", error);
-    res.status(500).json({ error: "Database connection failed" });
-  }
-});
+    await client.connect();
+    console.log("Connected to MongoDB");
 
-const verifySession = async (req, res, next) => {
-  try {
-    const session = await auth.api.getSession({ headers: req.headers });
-    if (!session) return res.status(401).json({ error: "Unauthorized" });
-    req.user = session.user;
-    next();
-  } catch {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
-};
+    const db = client.db("sportflowDB");
+    const facilityCollection = db.collection("facilities");
+    const bookingCollection = db.collection("bookings");
 
-app.get("/", (req, res) => {
-  res.send("SportFlow Server is running!");
-});
+    const auth = betterAuth({
+      baseURL: process.env.BETTER_AUTH_URL || "http://localhost:8000",
+      secret: process.env.BETTER_AUTH_SECRET,
+      database: mongodbAdapter(db),
+      emailAndPassword: { enabled: true },
+      socialProviders: {
+        google: {
+          clientId: process.env.GOOGLE_CLIENT_ID,
+          clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        },
+      },
+      trustedOrigins: [process.env.CLIENT_URL || "http://localhost:3000"],
+    });
 
+    const corsOptions = {
+      origin: process.env.CLIENT_URL || "http://localhost:3000",
+      methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+      credentials: true,
+      allowedHeaders: ["Content-Type", "Authorization"],
+    };
 
-app.get("/facilities", async (req, res) => {
+    app.use(cors(corsOptions));
+    app.use(express.json());
+    app.all(["/api/auth", "/api/auth/{*splat}"], toNodeHandler(auth));
+
+    const verifySession = async (req, res, next) => {
+      try {
+        const session = await auth.api.getSession({ headers: req.headers });
+        if (!session) return res.status(401).json({ error: "Unauthorized" });
+        req.user = session.user;
+        next();
+      } catch {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+    };
+
+    app.get("/", (req, res) => {
+      res.send("SportFlow Server is running!");
+    });
+
+    app.get("/facilities", async (req, res) => {
       const { search, type } = req.query;
       const query = {};
 
@@ -161,7 +85,7 @@ app.get("/facilities", async (req, res) => {
       res.send(facilities);
     });
 
-app.get("/facilities/:id", async (req, res) => {
+    app.get("/facilities/:id", async (req, res) => {
       const { ObjectId } = await import("mongodb");
       const facility = await facilityCollection.findOne({
         _id: new ObjectId(req.params.id),
@@ -170,21 +94,19 @@ app.get("/facilities/:id", async (req, res) => {
       res.send(facility);
     });
 
-
-app.post("/add-facility", verifySession, async (req, res) => {
+    app.post("/add-facility", verifySession, async (req, res) => {
       const result = await facilityCollection.insertOne(req.body);
       res.send(result);
     });
 
-app.get("/my-facilities", verifySession, async (req, res) => {
+    app.get("/my-facilities", verifySession, async (req, res) => {
       const facilities = await facilityCollection
         .find({ owner_email: req.user.email })
         .toArray();
       res.send(facilities);
     });
 
-
-app.put("/facilities/:id", verifySession, async (req, res) => {
+    app.put("/facilities/:id", verifySession, async (req, res) => {
       const { ObjectId } = await import("mongodb");
       const facility = await facilityCollection.findOne({
         _id: new ObjectId(req.params.id),
@@ -201,7 +123,7 @@ app.put("/facilities/:id", verifySession, async (req, res) => {
       res.send(result);
     });
 
-app.delete("/facilities/:id", verifySession, async (req, res) => {
+    app.delete("/facilities/:id", verifySession, async (req, res) => {
       const { ObjectId } = await import("mongodb");
       const facility = await facilityCollection.findOne({
         _id: new ObjectId(req.params.id),
@@ -216,8 +138,7 @@ app.delete("/facilities/:id", verifySession, async (req, res) => {
       res.send(result);
     });
 
-
-app.post("/bookings", verifySession, async (req, res) => {
+    app.post("/bookings", verifySession, async (req, res) => {
       const booking = {
         ...req.body,
         user_email: req.user.email,
@@ -235,7 +156,7 @@ app.post("/bookings", verifySession, async (req, res) => {
       res.send(result);
     });
 
-app.get("/my-bookings", verifySession, async (req, res) => {
+    app.get("/my-bookings", verifySession, async (req, res) => {
       const bookings = await bookingCollection
         .find({ user_email: req.user.email })
         .sort({ created_at: -1 })
@@ -243,7 +164,7 @@ app.get("/my-bookings", verifySession, async (req, res) => {
       res.send(bookings);
     });
 
-app.patch("/bookings/:id/cancel", verifySession, async (req, res) => {
+    app.patch("/bookings/:id/cancel", verifySession, async (req, res) => {
       const { ObjectId } = await import("mongodb");
       const result = await bookingCollection.updateOne(
         { _id: new ObjectId(req.params.id), user_email: req.user.email },
@@ -251,10 +172,13 @@ app.patch("/bookings/:id/cancel", verifySession, async (req, res) => {
       );
       res.send(result);
     });
-if (process.env.NODE_ENV !== "production") {
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-  });
+
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  } catch (error) {
+    console.error("Failed to connect to MongoDB:", error);
+  }
 }
 
-export default app;
+startServer();
