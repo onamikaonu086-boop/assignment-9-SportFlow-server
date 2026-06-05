@@ -9,6 +9,14 @@ import { toNodeHandler } from "better-auth/node";
 dotenv.config();
 
 const app = express();
+const corsOptions = {
+  origin: [process.env.CLIENT_URL, "http://localhost:3000"],
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  credentials: true,
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
+app.use(cors(corsOptions));
+app.use(express.json());
 const PORT = process.env.PORT || 8000;
 const uri = process.env.MONGODB_URI;
 
@@ -45,18 +53,9 @@ async function startServer() {
           clientSecret: process.env.GOOGLE_CLIENT_SECRET,
         },
       },
-      trustedOrigins: [process.env.CLIENT_URL || "http://localhost:3000"],
+      trustedOrigins: [process.env.CLIENT_URL, "http://localhost:3000"],
     });
 
-    const corsOptions = {
-      origin: process.env.CLIENT_URL || "http://localhost:3000",
-      methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-      credentials: true,
-      allowedHeaders: ["Content-Type", "Authorization"],
-    };
-
-    app.use(cors(corsOptions));
-    app.use(express.json());
     app.all(["/api/auth", "/api/auth/{*splat}"], toNodeHandler(auth));
 
     const verifySession = async (req, res, next) => {
@@ -90,7 +89,8 @@ async function startServer() {
       const facility = await facilityCollection.findOne({
         _id: new ObjectId(req.params.id),
       });
-      if (!facility) return res.status(404).json({ error: "Facility not found" });
+      if (!facility)
+        return res.status(404).json({ error: "Facility not found" });
       res.send(facility);
     });
 
@@ -118,7 +118,7 @@ async function startServer() {
       const { _id, owner_email, booking_count, ...updateData } = req.body;
       const result = await facilityCollection.updateOne(
         { _id: new ObjectId(req.params.id) },
-        { $set: updateData }
+        { $set: updateData },
       );
       res.send(result);
     });
@@ -150,7 +150,7 @@ async function startServer() {
       const { ObjectId } = await import("mongodb");
       await facilityCollection.updateOne(
         { _id: new ObjectId(booking.facility_id) },
-        { $inc: { booking_count: 1 } }
+        { $inc: { booking_count: 1 } },
       );
 
       res.send(result);
@@ -168,7 +168,7 @@ async function startServer() {
       const { ObjectId } = await import("mongodb");
       const result = await bookingCollection.updateOne(
         { _id: new ObjectId(req.params.id), user_email: req.user.email },
-        { $set: { status: "cancelled" } }
+        { $set: { status: "cancelled" } },
       );
       res.send(result);
     });
