@@ -43,7 +43,7 @@ async function startServer() {
     const bookingCollection = db.collection("bookings");
 
     const auth = betterAuth({
-      baseURL: process.env.BETTER_AUTH_URL || "http://localhost:8000",
+      baseURL: process.env.BETTER_AUTH_URL?.replace(/\/$/, "") || "http://localhost:8000",
       secret: process.env.BETTER_AUTH_SECRET,
       database: mongodbAdapter(db),
       emailAndPassword: { enabled: true },
@@ -51,9 +51,13 @@ async function startServer() {
         google: {
           clientId: process.env.GOOGLE_CLIENT_ID,
           clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          allowDangerousEmailAccountLinking: false,
         },
       },
-      trustedOrigins: [process.env.CLIENT_URL, "http://localhost:3000"],
+      trustedOrigins: [
+        process.env.CLIENT_URL?.replace(/\/$/, "") || "https://assignment-9-sport-flow.vercel.app",
+        "http://localhost:3000",
+      ],
     });
 
     app.all(["/api/auth", "/api/auth/{*splat}"], toNodeHandler(auth));
