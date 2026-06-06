@@ -9,8 +9,14 @@ import { toNodeHandler } from "better-auth/node";
 dotenv.config();
 
 const app = express();
+
+// Normalize URLs
+const cleanUrl = (url) => url?.replace(/\/$/, "") || "";
+const FRONTEND_URL = cleanUrl(process.env.CLIENT_URL) || "https://assignment-9-sport-flow.vercel.app";
+const BACKEND_URL = cleanUrl(process.env.BETTER_AUTH_URL) || "https://assignment-9-sport-flow-server.vercel.app";
+
 const corsOptions = {
-  origin: [process.env.CLIENT_URL, "http://localhost:3000"],
+  origin: [FRONTEND_URL, "http://localhost:3000", "http://localhost:8000"],
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   credentials: true,
   allowedHeaders: ["Content-Type", "Authorization"],
@@ -43,7 +49,7 @@ async function startServer() {
     const bookingCollection = db.collection("bookings");
 
     const auth = betterAuth({
-      baseURL: process.env.BETTER_AUTH_URL?.replace(/\/$/, "") || "http://localhost:8000",
+      baseURL: BACKEND_URL,
       secret: process.env.BETTER_AUTH_SECRET,
       database: mongodbAdapter(db),
       emailAndPassword: { enabled: true },
@@ -54,13 +60,10 @@ async function startServer() {
           allowDangerousEmailAccountLinking: false,
         },
       },
-      trustedOrigins: [
-        process.env.CLIENT_URL?.replace(/\/$/, "") || "https://assignment-9-sport-flow.vercel.app",
-        "http://localhost:3000",
-      ],
+      trustedOrigins: [FRONTEND_URL, "http://localhost:3000", "http://localhost:8000"],
     });
 
-    app.all(["/api/auth", "/api/auth/{*splat}"], toNodeHandler(auth));
+    app.all("/api/auth/*", toNodeHandler(auth));
 
     const verifySession = async (req, res, next) => {
       try {
