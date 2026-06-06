@@ -20,9 +20,16 @@ const corsOptions = {
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   credentials: true,
   allowedHeaders: ["Content-Type", "Authorization"],
+  optionsSuccessStatus: 200,
 };
+
+// CORS middleware
 app.use(cors(corsOptions));
 app.use(express.json());
+
+// Explicit OPTIONS handler for preflight requests
+app.options("*", cors(corsOptions));
+
 const PORT = process.env.PORT || 8000;
 const uri = process.env.MONGODB_URI;
 
@@ -63,7 +70,18 @@ async function startServer() {
       trustedOrigins: [FRONTEND_URL, "http://localhost:3000", "http://localhost:8000"],
     });
 
-    app.all("/api/auth/*", toNodeHandler(auth));
+    // Better Auth handler
+    const authHandler = toNodeHandler(auth);
+    
+    // Auth routes - handle all methods including OPTIONS
+    app.use("/api/auth/", async (req, res) => {
+      try {
+        return await authHandler(req, res);
+      } catch (error) {
+        console.error("Auth handler error:", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
+    });
 
     const verifySession = async (req, res, next) => {
       try {
