@@ -14,7 +14,6 @@ const cleanUrl = (url) => url?.replace(/\/$/, "") || "";
 const FRONTEND_URL = cleanUrl(process.env.CLIENT_URL) || "https://assignment-9-sport-flow.vercel.app";
 const BACKEND_URL = cleanUrl(process.env.BETTER_AUTH_URL) || "https://assignment-9-sport-flow-server.vercel.app";
 
-
 const defaultLocalOrigins = ["http://localhost:3000", "http://localhost:8000"];
 const allowedOrigins = new Set([FRONTEND_URL, ...defaultLocalOrigins]);
 
@@ -39,11 +38,7 @@ const corsOptions = {
   optionsSuccessStatus: 200,
 };
 
-// CORS middleware
 app.use((req, res, next) => {
-  if (process.env.NODE_ENV !== "production") {
-    console.debug("Incoming request origin:", req.headers.origin);
-  }
   cors(corsOptions)(req, res, next);
 });
 app.use(express.json());
@@ -88,9 +83,22 @@ async function startServer() {
         },
       },
       trustedOrigins: [FRONTEND_URL, ...defaultLocalOrigins],
+      advanced: {
+        useSecureCookies: true,
+        cookiePrefix: "sportflow",
+        defaultCookieAttributes: {
+          secure: true,
+          httpOnly: true,
+          sameSite: "none",
+          partitioned: false,
+        },
+        crossSubdomainCookies: {
+          enabled: false,
+        },
+        generateId: () => crypto.randomUUID(),
+      },
     });
 
-    // Better Auth handler
     const authHandler = toNodeHandler(auth);
 
     app.options("/api/auth/*splat", cors(corsOptions));
