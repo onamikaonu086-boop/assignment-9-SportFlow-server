@@ -10,25 +10,45 @@ dotenv.config();
 
 const app = express();
 
-// Normalize URLs
 const cleanUrl = (url) => url?.replace(/\/$/, "") || "";
 const FRONTEND_URL = cleanUrl(process.env.CLIENT_URL) || "https://assignment-9-sport-flow.vercel.app";
 const BACKEND_URL = cleanUrl(process.env.BETTER_AUTH_URL) || "https://assignment-9-sport-flow-server.vercel.app";
 
+
+const defaultLocalOrigins = ["http://localhost:3000", "http://localhost:8000"];
+const allowedOrigins = new Set([FRONTEND_URL, ...defaultLocalOrigins]);
+
 const corsOptions = {
-  origin: [FRONTEND_URL, "http://localhost:3000", "http://localhost:8000"],
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.has(origin)) {
+      return callback(null, true);
+    }
+
+    if (process.env.NODE_ENV !== "production" && /^(https?:\/\/localhost(:\d+)?)$/.test(origin)) {
+      return callback(null, true);
+    }
+
+    console.warn("CORS blocked request from origin:", origin);
+    return callback(new Error("Not allowed by CORS"), false);
+  },
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   credentials: true,
-  allowedHeaders: ["Content-Type", "Authorization"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   optionsSuccessStatus: 200,
 };
 
 // CORS middleware
-app.use(cors(corsOptions));
+app.use((req, res, next) => {
+  if (process.env.NODE_ENV !== "production") {
+    console.debug("Incoming request origin:", req.headers.origin);
+  }
+  cors(corsOptions)(req, res, next);
+});
 app.use(express.json());
 
-// Explicit OPTIONS handler for preflight requests
-app.options("*", cors(corsOptions));
+app.options("/*splat", cors(corsOptions));
 
 const PORT = process.env.PORT || 8000;
 const uri = process.env.MONGODB_URI;
@@ -67,14 +87,15 @@ async function startServer() {
           allowDangerousEmailAccountLinking: false,
         },
       },
-      trustedOrigins: [FRONTEND_URL, "http://localhost:3000", "http://localhost:8000"],
+      trustedOrigins: [FRONTEND_URL, ...defaultLocalOrigins],
     });
 
     // Better Auth handler
     const authHandler = toNodeHandler(auth);
-    
-    // Auth routes - handle all methods including OPTIONS
-    app.use("/api/auth/", async (req, res) => {
+
+    app.options("/api/auth/*splat", cors(corsOptions));
+
+    app.use("/api/auth", cors(corsOptions), async (req, res) => {
       try {
         return await authHandler(req, res);
       } catch (error) {
